@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Searchable Release Notes</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main>
+    <h1>Searchable Release Notes</h1>
+    <p class="lede">Find which release fixed what — search by fix ID, error text, feature name, or version.</p>
+
+    <div class="search-row">
+      <input id="q" type="text" placeholder="e.g. FIX-1042, &quot;memory leak&quot;, 4.2.0…" autofocus>
+    </div>
+
+    <p id="status" class="status"></p>
+    <ul id="results" class="results"></ul>
+  </main>
+
+  <script>
+    const input = document.getElementById('q');
+    const resultsEl = document.getElementById('results');
+    const statusEl = document.getElementById('status');
+    let debounceTimer = null;
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    function renderResults(data) {
+      resultsEl.innerHTML = '';
+      if (!data.query) {
+        statusEl.textContent = '';
+        return;
+      }
+      if (data.results.length === 0) {
+        statusEl.textContent = `No matches for "${data.query}". Try a broader term or check spelling.`;
+        return;
+      }
+      statusEl.textContent = `${data.results.length} result${data.results.length === 1 ? '' : 's'} for "${data.query}"`;
+
+      for (const r of data.results) {
+        const li = document.createElement('li');
+        li.className = 'result';
+
+        const title = escapeHtml(r.product) + (r.version ? ` — v${escapeHtml(r.version)}` : '');
+        const date = r.release_date ? ` · ${escapeHtml(r.release_date)}` : '';
+
+        const links = [];
+        links.push(`<a href="${r.source_url}" target="_blank" rel="noopener">Source PDF</a>`);
+        if (r.confluence_url) {
+          links.push(`<a href="${r.confluence_url}" target="_blank" rel="noopener">Confluence (internal)</a>`);
+        }
+        if (r.help_center_url) {
+          links.push(`<a href="${r.help_center_url}" target="_blank" rel="noopener">Help Center (external)</a>`);
+        }
+        if (!r.confluence_url && !r.help_center_url) {
+          links.push('<span class="no-links">no linked resources yet</span>');
+        }
+
+        li.innerHTML = `
+          <div class="result-title">${title}${date}</div>
+          <div class="result-snippet">${r.snippet}</div>
+          <div class="result-links">${links.join(' &nbsp;·&nbsp; ')}</div>
+        `;
+        resultsEl.appendChild(li);
+      }
+    }
+
+    async function runSearch() {
+      const q = input.value.trim();
+      if (!q) {
+        statusEl.textContent = '';
+        resultsEl.innerHTML = '';
+        return;
+      }
+      statusEl.textContent = 'Searching…';
+      const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const data = await resp.json();
+      renderResults(data);
+    }
+
+    input.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(runSearch, 200);
+    });
+  </script>
+</body>
+</html>

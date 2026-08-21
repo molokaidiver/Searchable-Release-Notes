@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# The generated search index — rebuild it locally with ingestion/ingest.py.
+# Real (non-sample) release-note PDFs also don't belong in the repo; point
+# --source at wherever your team actually stores them.
+data/release_notes.db
+data/*.db
+
+# OS cruft
+.DS_Store
+Thumbs.db
